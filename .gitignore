@@ -3,3 +3,4 @@ dist
 .DS_Store
 pipeline/output/
 pipeline/.cache/
+.netlify/

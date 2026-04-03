@@ -649,6 +649,25 @@ export default function App() {
     setActiveDealIndex((prev) => Math.max(0, prev - 1));
   };
 
+  const importDeals = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".json";
+    input.onchange = async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const imported = JSON.parse(text);
+        if (!Array.isArray(imported)) throw new Error("Expected array");
+        setDeals((prev) => [...prev, ...imported]);
+      } catch (err) {
+        alert("Invalid deals JSON file: " + err.message);
+      }
+    };
+    input.click();
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "#0c1220", color: "#e8edf5", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px 40px" }}>
@@ -677,6 +696,10 @@ export default function App() {
             background: "#1a6b4a", border: "none", borderRadius: 6, color: "#4ade80",
             padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer"
           }}>+ New</button>
+          <button onClick={importDeals} style={{
+            background: "#1a2d5c", border: "none", borderRadius: 6, color: "#60a5fa",
+            padding: "8px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer"
+          }}>Import</button>
           {deals.length > 1 && (
             <button onClick={deleteDeal} style={{
               background: "#3d1414", border: "none", borderRadius: 6, color: "#f87171",
