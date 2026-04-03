@@ -1,0 +1,31 @@
+park_name,address,city,state,zip,county,owner_name,owner_mailing_address,owner_mailing_city,owner_mailing_state,owner_mailing_zip,lot_count,assessed_value,year_built,ownership_date,tax_status,equity_percent,mortgage_amount,utilities
+Sunrise Mobile Home Park,1200 Asheville Hwy,Knoxville,TN,37914,Knox,Smith Family Trust,456 Oak St,Columbus,OH,43215,85,750000,1978,2008-03-15,current,100,0,city
+Valley View Estates,3400 N Broadway,Knoxville,TN,37917,Knox,Henderson Properties LLC,1200 Peachtree St,Atlanta,GA,30309,72,680000,1982,2006-11-20,current,85,102000,city
+Cedar Ridge MHP,5500 Clinton Hwy,Knoxville,TN,37912,Knox,Westfield Investments,890 Michigan Ave,Indianapolis,IN,46204,95,900000,1975,2005-06-01,current,100,0,city
+Maryville Mobile Village,2100 E Broadway Ave,Maryville,TN,37801,Blount,Lakeshore Capital Group,2500 Lake Shore Dr,Chicago,IL,60614,68,620000,1980,2012-01-10,current,90,62000,
+Mountain Meadows MHP,4800 Rutledge Pike,Knoxville,TN,37918,Knox,Pacific Realty Holdings,1500 Market St,San Francisco,CA,94103,110,1200000,1972,2006-09-22,current,100,0,city
+Hillcrest Terrace,800 Merchant Dr,Knoxville,TN,37912,Knox,Johnson Family LP,200 Main St,Knoxville,TN,37902,,450000,1985,2015-04-01,current,75,112500,city
+Oak Park Mobile Homes,1900 Western Ave,Knoxville,TN,37921,Knox,Patricia Morgan,1900 Western Ave,Knoxville,TN,37921,62,1100000,1990,2018-07-15,current,60,440000,city
+Riverside MHP,3200 Alcoa Hwy,Maryville,TN,37804,Blount,River Holdings Inc,780 River Rd,Chattanooga,TN,37405,75,800000,1977,2009-02-28,current,100,0,
+Anderson County Estates,100 Edgemoor Rd,Clinton,TN,37716,Anderson,Baker Investment Trust,3300 W End Ave,Nashville,TN,37203,58,520000,1983,2011-08-12,current,80,104000,
+Pine Hills Community,600 Oak Ridge Tpke,Oak Ridge,TN,37830,Anderson,Shenandoah Properties LLC,400 King St,Alexandria,VA,22314,,680000,1979,2007-05-20,current,100,0,
+Sevier Heights MHP,1500 Dolly Parton Pkwy,Sevierville,TN,37862,Sevier,Mountain Investments LLC,900 Broadway,Lexington,KY,40507,55,490000,1988,2014-03-25,current,70,147000,
+Lakewood Village,2800 Middlebrook Pike,Knoxville,TN,37921,Knox,Tanaka Holdings Corp,1-2-3 Shibuya,Tokyo,,100-0005,65,580000,1981,2004-12-01,current,100,0,city
+Smoky View Estates,900 Winfield Dunn Pkwy,Sevierville,TN,37876,Sevier,Evergreen Trust,PO Box 445,Knoxville,TN,37901,,720000,1974,2010-11-30,current,90,72000,
+Small Pines MHP,400 Tazewell Pike,Knoxville,TN,37918,Knox,Robert Chen,400 Tazewell Pike,Knoxville,TN,37918,25,180000,1985,2019-06-01,current,50,90000,city
+Cozy Corner MHP,150 Loves Creek Rd,Knoxville,TN,37922,Knox,Maria Santos,150 Loves Creek Rd,Knoxville,TN,37922,18,120000,1990,2020-03-15,current,40,72000,city
+Blount Mini Park,300 Foothills Mall Dr,Maryville,TN,37801,Blount,Tom Williams,300 Foothills Mall Dr,Maryville,TN,37801,30,210000,1987,2017-09-10,current,65,73500,
+Farragut Homes,500 Campbell Station Rd,Knoxville,TN,37934,Knox,Linda Park,500 Campbell Station Rd,Knoxville,TN,37934,22,195000,1992,2021-01-20,current,30,136500,city
+Anderson Mini MHP,200 Main St,Clinton,TN,37716,Anderson,James Wilson,200 Main St,Clinton,TN,37716,35,165000,1980,2016-04-15,current,100,0,
+Sevier Pocket Park,250 Forks of the River Pkwy,Sevierville,TN,37862,Sevier,Nancy Taylor,250 Forks of River Pkwy,Sevierville,TN,37862,15,95000,1995,2022-08-01,current,20,76000,
+Karns Mobile Court,200 Byington Solway Rd,Knoxville,TN,37931,Knox,David Brown,200 Byington Solway Rd,Knoxville,TN,37931,40,280000,1984,2013-05-22,current,75,70000,city
+Powell Pines,100 Emory Rd,Knoxville,TN,37938,Knox,Sarah Mitchell,6700 Baum Dr,Knoxville,TN,37919,45,320000,1979,2002-11-01,current,100,0,city
+Townsend Tiny Village,500 Lamar Alexander Pkwy,Townsend,TN,37882,Blount,Jeff Adams,500 Lamar Alexander Pkwy,Townsend,TN,37882,12,80000,1998,2023-02-14,current,10,72000,
+Halls Crossroads MHP,300 Maynardville Pike,Knoxville,TN,37918,Knox,Karen White,300 Maynardville Pike,Knoxville,TN,37918,42,300000,1986,2015-07-30,current,55,135000,city
+Dalton Acres MHP,800 Chattanooga Rd,Dalton,GA,30720,Whitfield,Georgia Investments LLC,800 Chattanooga Rd,Dalton,GA,30720,65,420000,1976,2008-04-10,current,100,0,city
+North Georgia Pines,200 Cleveland Hwy,Dalton,GA,30721,Whitfield,Peach State Holdings,200 Cleveland Hwy,Dalton,GA,30721,50,380000,1982,2010-07-15,current,80,76000,city
+London KY Mobile Park,400 N Main St,London,KY,40741,Laurel,Bluegrass Rentals LLC,400 N Main St,London,KY,40741,55,290000,1979,2007-09-01,current,100,0,city
+Williamsburg Estates,600 US-25W,Williamsburg,KY,40769,Whitley,Mountain Realty Inc,600 US-25W,Williamsburg,KY,40769,45,195000,1981,2005-12-20,delinquent,100,0,well
+Lagoon Creek MHP,900 Ball Camp Pike,Knoxville,TN,37921,Knox,Old Timer Properties,900 Ball Camp Pike,Knoxville,TN,37921,60,350000,1970,2001-03-15,delinquent,100,0,lagoon
+Well Springs Park,1100 Middlebrook Pike,Knoxville,TN,37921,Knox,Retired Farmer Trust,PO Box 100,Knoxville,TN,37901,55,280000,1968,1998-06-01,current,100,0,well
+KY Border Park,100 Cumberland Gap Pkwy,Harrogate,TN,37752,Claiborne,Border Holdings LLC,100 Cumberland Gap Pkwy,Middlesboro,KY,40965,70,310000,1975,2003-08-20,delinquent,100,0,septic
