@@ -45,6 +45,17 @@ const ASSET_CONFIGS = {
     pohEnabled: false,
     reservePerSpace: 1250,
   },
+  slowflip: {
+    label: "Slow Flip",
+    shortLabel: "SF",
+    accentColor: "#16a34a",
+    useCustomCalculator: true,
+    defaults: {
+      purchasePrice: 30000, lenderAmount: 30000, lenderRate: 12, lenderTermMonths: 60,
+      salePrice: 89000, buyerDownPayment: 3000, buyerMonthlyPayment: 875, buyerTermMonths: 360,
+      closingCostEstimate: 900, monthlyTaxes: 0, monthlyInsurance: 0,
+    },
+  },
 };
 
 const MHP_CRITERIA = [
@@ -73,6 +84,21 @@ const RV_CRITERIA = [
   { id: 10, name: "Revenue Segmented (<40% concentration)", desc: "Strip RTO income. Value on lot rent only. Flag >40% single source.", hard: false },
   { id: 11, name: "DSCR >= 1.25x on Current NOI", desc: "Must cash flow day one. Check worst 3 months individually.", hard: false },
   { id: 12, name: "Reserves ($1,000-1,500/space)", desc: "Raised at acquisition. Replenished continuously. Separate from capex.", hard: false },
+];
+
+const SF_CRITERIA = [
+  { id: 1, name: "Cash Flow Not Negative", desc: "Buyer payment >= lender payment + taxes + insurance. NEVER go negative.", hard: true },
+  { id: 2, name: "Not Using Personal Savings", desc: "Private money or seller financing, not personal capital as primary funding.", hard: true },
+  { id: 3, name: "Lender Term <= 60 Months", desc: "5-year max payoff. Longer defeats the model.", hard: true },
+  { id: 4, name: "Viable Slow Flip Market", desc: "Comps support resale price. Buyer payment competitive with local rents.", hard: true },
+  { id: 5, name: "Clean Title Obtainable", desc: "Title search shows clear or resolvable liens. Liens below purchase price OK.", hard: true },
+  { id: 6, name: "Purchase Price", desc: "GREEN: <= $30K. YELLOW: $30K-$50K. RED: > $50K.", hard: false },
+  { id: 7, name: "Sale Price vs Market", desc: "GREEN: <= 3x purchase + comps. YELLOW: 3-3.5x or limited comps. RED: > 3.5x or no comps.", hard: false },
+  { id: 8, name: "Buyer Down Payment", desc: "GREEN: >= $5K. YELLOW: $3K-$5K. RED: < $3K.", hard: false },
+  { id: 9, name: "Monthly Collection", desc: "GREEN: >= $875. YELLOW: $750-$874. RED: < $750.", hard: false },
+  { id: 10, name: "Pocket Money at Closing", desc: "GREEN: positive. YELLOW: break-even +/- $500. RED: negative (you bring cash).", hard: false },
+  { id: 11, name: "Seller Motivation", desc: "GREEN: distressed/absentee/tax delinquent/estate. YELLOW: listed w/ agent. RED: full retail.", hard: false },
+  { id: 12, name: "Property Condition", desc: "GREEN: cosmetic work only. YELLOW: major systems (roof, HVAC). RED: condemned/fire/environmental.", hard: false },
 ];
 
 const MHP_MARKET_CHECKS = [
@@ -136,12 +162,43 @@ const RV_MARKET_CHECKS = [
   ]},
 ];
 
+const SF_MARKET_CHECKS = [
+  { cat: "Market Viability", items: [
+    { label: "Houses available under $50K in target market", source: "Zillow, Realtor.com, PropStream", id: "sf_inventory" },
+    { label: "Comps confirm $30K purchase is realistic", source: "Sold homes in area", id: "sf_comps" },
+    { label: "Rental rates support $875+/mo payment", source: "Payment competitive with local rents", id: "sf_rents" },
+    { label: "Population stable or growing", source: "bestplaces.net / Census", id: "sf_pop" },
+    { label: "Within 3-5 hours of home base (or local infrastructure)", source: "Attorney, title co, sign person", id: "sf_distance" },
+  ]},
+  { cat: "Property Due Diligence", items: [
+    { label: "Title search completed — clean or resolvable", source: "Title company", id: "sf_title" },
+    { label: "Property taxes current or amount known", source: "County records", id: "sf_taxes" },
+    { label: "No active code violations preventing occupancy", source: "City/county code enforcement", id: "sf_codes" },
+    { label: "Physical condition assessed — livable or near-livable", source: "Drive-by or video", id: "sf_condition" },
+    { label: "Insurance quote obtained (cash value, 2x purchase)", source: "Insurance agent", id: "sf_insurance" },
+  ]},
+  { cat: "Legal & Infrastructure", items: [
+    { label: "Owner financing legal in target state", source: "Attorney confirmation", id: "sf_legal" },
+    { label: "Real estate attorney identified", source: "For closings", id: "sf_attorney" },
+    { label: "Title company identified", source: "Title search + insurance", id: "sf_titleco" },
+    { label: "State disclosure requirements understood", source: "Lead paint, seller disclosures", id: "sf_disclosures" },
+    { label: "Land contract template reviewed by attorney", source: "Agreement for deed", id: "sf_contract" },
+  ]},
+  { cat: "Deal Execution", items: [
+    { label: "Private money lender identified", source: "12% / $30K / 60mo", id: "sf_lender" },
+    { label: "Marketing plan ready", source: "Signs, FB Marketplace, Craigslist, video", id: "sf_marketing" },
+    { label: "Lockbox purchased for self-showing", source: "Install at closing", id: "sf_lockbox" },
+    { label: "Google Voice number set up", source: "Property-specific number", id: "sf_phone" },
+    { label: "Buyer qualification approach decided", source: "First-come-first-served recommended", id: "sf_qualification" },
+  ]},
+];
+
 function defaultDeal() {
   return {
     id: crypto.randomUUID(), name: "", assetType: "mhp", createdAt: new Date().toISOString(),
-    analyzer: { lots: 50, lotRent: 200, utilPayer: "tenant", parkType: "mixed", targetCap: 10, pohCount: 5, pohDecade: "90s", askingPrice: 900000, interestRate: 5, seasonalWorstPct: 50 },
+    analyzer: { lots: 50, lotRent: 200, utilPayer: "tenant", parkType: "mixed", targetCap: 10, pohCount: 5, pohDecade: "90s", askingPrice: 900000, interestRate: 5, seasonalWorstPct: 50, purchasePrice: 30000, lenderAmount: 30000, lenderRate: 12, lenderTermMonths: 60, salePrice: 89000, buyerDownPayment: 3000, buyerMonthlyPayment: 875, buyerTermMonths: 360, closingCostEstimate: 900, monthlyTaxes: 0, monthlyInsurance: 0 },
     scorecard: {},
-    valueAdd: { currentLots: 50, currentRent: 175, marketRent: 280, currentOccupancy: 70, targetOccupancy: 90, utilPayer: "park", capRate: 10, utilCostPerSite: 75 },
+    valueAdd: { currentLots: 50, currentRent: 175, marketRent: 280, currentOccupancy: 70, targetOccupancy: 90, utilPayer: "park", capRate: 10, utilCostPerSite: 75, freedomTarget: 10000, existingProperties: 0, existingMonthlyIncome: 0, monthsToAcquire: 2 },
     marketCheck: { states: {}, zip: "", firecrawlKey: "", marketData: null },
   };
 }
@@ -198,6 +255,229 @@ function ResultCard({ label, value, sub, accent }) {
 
 function SectionTitle({ children }) {
   return <h3 style={{ fontSize: 13, fontWeight: 700, color: "#8a9bb5", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 14, marginTop: 22, borderBottom: "1px solid #1e2d42", paddingBottom: 8 }}>{children}</h3>;
+}
+
+function calcMonthlyPayment(principal, annualRate, termMonths) {
+  const r = annualRate / 100 / 12;
+  if (r === 0) return principal / termMonths;
+  return principal * (r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1);
+}
+
+function calcImpliedRate(principal, monthlyPayment, termMonths) {
+  let rate = 0.01;
+  for (let i = 0; i < 100; i++) {
+    const r = rate;
+    const pmt = principal * (r * Math.pow(1 + r, termMonths)) / (Math.pow(1 + r, termMonths) - 1);
+    const dPmt = principal * (
+      (Math.pow(1+r, termMonths) + r * termMonths * Math.pow(1+r, termMonths-1)) * (Math.pow(1+r, termMonths) - 1) -
+      r * Math.pow(1+r, termMonths) * termMonths * Math.pow(1+r, termMonths-1)
+    ) / Math.pow(Math.pow(1+r, termMonths) - 1, 2);
+    if (Math.abs(dPmt) < 0.0001) break;
+    rate = r - (pmt - monthlyPayment) / dPmt;
+    if (Math.abs(pmt - monthlyPayment) < 0.01) break;
+  }
+  return rate * 12 * 100;
+}
+
+function SlowFlipAnalyzer({ data, update }) {
+  const { purchasePrice, lenderAmount, lenderRate, lenderTermMonths, salePrice, buyerDownPayment, buyerMonthlyPayment, buyerTermMonths, closingCostEstimate, monthlyTaxes, monthlyInsurance } = data;
+  const set = (key) => (val) => update({ ...data, [key]: val });
+
+  const lenderPayment = calcMonthlyPayment(lenderAmount, lenderRate, lenderTermMonths);
+  const pocketMoney = lenderAmount - purchasePrice - closingCostEstimate;
+  const monthlyCF15 = buyerMonthlyPayment - lenderPayment - monthlyTaxes - monthlyInsurance;
+  const monthlyCF6 = buyerMonthlyPayment - monthlyTaxes - monthlyInsurance;
+  const buyerFinanced = salePrice - buyerDownPayment;
+  const impliedRate = buyerFinanced > 0 && buyerMonthlyPayment > 0 && buyerTermMonths > 0 ? calcImpliedRate(buyerFinanced, buyerMonthlyPayment, buyerTermMonths) : 0;
+  const totalPayout = buyerMonthlyPayment * buyerTermMonths + buyerDownPayment;
+  const totalReturn = totalPayout - lenderAmount;
+  const freedomPct = monthlyCF6 > 0 ? (monthlyCF6 / 10000) * 100 : 0;
+  const saleRatio = purchasePrice > 0 ? salePrice / purchasePrice : 0;
+
+  let verdict, verdictColor;
+  if (monthlyCF15 < 0) { verdict = "DO NOT BUY"; verdictColor = "#f87171"; }
+  else if (monthlyCF15 <= 50) { verdict = "TIGHT — LOW MARGIN"; verdictColor = "#fbbf24"; }
+  else if (purchasePrice > 50000) { verdict = "ABOVE CEILING"; verdictColor = "#fbbf24"; }
+  else if (saleRatio > 3.5) { verdict = "MAY BE UNREALISTIC"; verdictColor = "#fbbf24"; }
+  else { verdict = "FORMULA WORKS"; verdictColor = "#4ade80"; }
+
+  return (
+    <div>
+      <SectionTitle>Purchase Side</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Purchase Price" value={purchasePrice} onChange={set("purchasePrice")} prefix="$" />
+        <Input label="Lender Amount" value={lenderAmount} onChange={set("lenderAmount")} prefix="$" />
+        <Input label="Lender Rate" value={lenderRate} onChange={set("lenderRate")} suffix="%" />
+        <Input label="Lender Term" value={lenderTermMonths} onChange={set("lenderTermMonths")} suffix="months" />
+      </div>
+      <SectionTitle>Sale Side</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Sale Price" value={salePrice} onChange={set("salePrice")} prefix="$" />
+        <Input label="Buyer Down Payment" value={buyerDownPayment} onChange={set("buyerDownPayment")} prefix="$" />
+        <Input label="Buyer Monthly Payment" value={buyerMonthlyPayment} onChange={set("buyerMonthlyPayment")} prefix="$" suffix="/mo" />
+        <Input label="Buyer Term" value={buyerTermMonths} onChange={set("buyerTermMonths")} suffix="months" />
+      </div>
+      <SectionTitle>Carrying Costs</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Monthly Taxes" value={monthlyTaxes} onChange={set("monthlyTaxes")} prefix="$" suffix="/mo" />
+        <Input label="Monthly Insurance" value={monthlyInsurance} onChange={set("monthlyInsurance")} prefix="$" suffix="/mo" />
+        <Input label="Closing Cost Estimate" value={closingCostEstimate} onChange={set("closingCostEstimate")} prefix="$" />
+      </div>
+      <SectionTitle>Deal Numbers</SectionTitle>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="Lender Payment" value={fmtCurrency(lenderPayment)} sub={`${lenderRate}% / ${lenderTermMonths}mo`} />
+        <ResultCard label="Pocket Money at Closing" value={fmtCurrency(pocketMoney)} sub={pocketMoney >= 0 ? "Cash to you" : "You bring cash"} accent={pocketMoney > 0 ? "green" : pocketMoney >= -500 ? "amber" : "red"} />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="Monthly CF (Yr 1-5)" value={fmtCurrency(monthlyCF15)} sub={monthlyCF15 < 0 ? "NEGATIVE — DO NOT BUY" : `After lender + carrying`} accent={monthlyCF15 < 0 ? "red" : monthlyCF15 <= 50 ? "amber" : "green"} />
+        <ResultCard label="Monthly CF (Yr 6+)" value={fmtCurrency(monthlyCF6)} sub="Freedom income — lender paid off" accent="green" />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="Buyer Implied Rate" value={impliedRate.toFixed(1) + "%"} sub={`On $${buyerFinanced.toLocaleString()} financed`} />
+        <ResultCard label="30-Year Total Payout" value={fmtCurrency(totalPayout)} sub={`${buyerTermMonths}mo x $${buyerMonthlyPayment} + $${buyerDownPayment} down`} />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="Total Return" value={fmtCurrency(totalReturn)} sub={`Payout minus lender`} accent="green" />
+        <ResultCard label="Freedom Number" value={freedomPct.toFixed(1) + "%"} sub={`${fmtCurrency(monthlyCF6)}/mo of $10K target`} accent={freedomPct >= 10 ? "green" : "amber"} />
+      </div>
+      <div style={{ marginTop: 20, padding: "16px", background: "#111827", borderRadius: 10, border: "1px solid #1e2d42", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: "#5a7a9e", fontWeight: 600, marginBottom: 6 }}>VERDICT</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: verdictColor }}>{verdict}</div>
+      </div>
+      <div style={{ marginTop: 16, padding: "12px 14px", background: "#111827", borderRadius: 8, border: "1px solid #1e2d42" }}>
+        <div style={{ fontSize: 11, color: "#5a7a9e", fontWeight: 600, marginBottom: 6 }}>DEAL SUMMARY</div>
+        <div style={{ fontSize: 12, color: "#8a9bb5", fontFamily: "monospace", lineHeight: 1.8 }}>
+          Buy @ <span style={{ color: "#60a5fa" }}>{fmtCurrency(purchasePrice)}</span> with <span style={{ color: "#60a5fa" }}>{fmtCurrency(lenderAmount)}</span> private money @ {lenderRate}%/{lenderTermMonths}mo<br />
+          Sell @ <span style={{ color: "#4ade80" }}>{fmtCurrency(salePrice)}</span> — ${buyerDownPayment.toLocaleString()} down + ${buyerMonthlyPayment}/mo x {buyerTermMonths}mo<br />
+          Pocket <span style={{ color: pocketMoney >= 0 ? "#4ade80" : "#f87171" }}>{fmtCurrency(pocketMoney)}</span> at closing | CF <span style={{ color: monthlyCF15 >= 0 ? "#4ade80" : "#f87171" }}>{fmtCurrency(monthlyCF15)}</span>/mo yr 1-5 | <span style={{ color: "#4ade80" }}>{fmtCurrency(monthlyCF6)}</span>/mo yr 6+
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SlowFlipValueAdd({ data, update, analyzerData }) {
+  const set = (key) => (val) => update({ ...data, [key]: val });
+  const { freedomTarget, existingProperties, existingMonthlyIncome, monthsToAcquire } = data;
+  const { purchasePrice, lenderAmount, lenderRate, lenderTermMonths, salePrice, buyerDownPayment, buyerMonthlyPayment, buyerTermMonths, closingCostEstimate, monthlyTaxes, monthlyInsurance } = analyzerData;
+
+  // Base deal numbers
+  const baseLenderPmt = calcMonthlyPayment(lenderAmount, lenderRate, lenderTermMonths);
+  const baseCF15 = buyerMonthlyPayment - baseLenderPmt - monthlyTaxes - monthlyInsurance;
+  const baseCF6 = buyerMonthlyPayment - monthlyTaxes - monthlyInsurance;
+  const basePocket = lenderAmount - purchasePrice - closingCostEstimate;
+
+  // Scenario 1: Buy Lower (-$5K)
+  const s1Purchase = purchasePrice - 5000;
+  const s1Lender = lenderAmount - 5000;
+  const s1LenderPmt = calcMonthlyPayment(s1Lender, lenderRate, lenderTermMonths);
+  const s1CF15 = buyerMonthlyPayment - s1LenderPmt - monthlyTaxes - monthlyInsurance;
+  const s1Pocket = s1Lender - s1Purchase - closingCostEstimate;
+
+  // Scenario 2: Sell Higher (+$10K)
+  const s2Sale = salePrice + 10000;
+  const s2BuyerPmt = buyerMonthlyPayment + 30;
+  const s2CF15 = s2BuyerPmt - baseLenderPmt - monthlyTaxes - monthlyInsurance;
+
+  // Scenario 3: Better Terms (10% rate, 8% lender)
+  const s3LenderPmt = calcMonthlyPayment(lenderAmount, 8, lenderTermMonths);
+  const s3CF15 = buyerMonthlyPayment - s3LenderPmt - monthlyTaxes - monthlyInsurance;
+
+  // Freedom calculator
+  const target = freedomTarget || 10000;
+  const remaining = Math.max(0, target - (existingMonthlyIncome || 0));
+  const propertiesNeeded = baseCF6 > 0 ? Math.ceil(remaining / baseCF6) : 0;
+  const totalMonths = propertiesNeeded * (monthsToAcquire || 2);
+  const freedomDate = new Date();
+  freedomDate.setMonth(freedomDate.getMonth() + totalMonths);
+  const progressPct = target > 0 ? Math.min(((existingMonthlyIncome || 0) / target) * 100, 100) : 0;
+
+  // Portfolio from localStorage
+  const [portfolio, setPortfolio] = useState([]);
+  useEffect(() => {
+    try {
+      const allDeals = JSON.parse(localStorage.getItem("mhp-deals") || "[]");
+      setPortfolio(allDeals.filter(d => d.assetType === "slowflip"));
+    } catch {}
+  }, []);
+
+  const Scenario = ({ title, cf, delta, extra }) => (
+    <div style={{ background: "#111827", border: "1px solid #1e2d42", borderRadius: 8, padding: "12px 14px", marginBottom: 8 }}>
+      <div style={{ fontSize: 12, fontWeight: 700, color: "#e8edf5", marginBottom: 6 }}>{title}</div>
+      <div style={{ display: "flex", gap: 12 }}>
+        <div><span style={{ fontSize: 11, color: "#5a7a9e" }}>CF Yr 1-5: </span><span style={{ fontSize: 13, fontWeight: 700, color: cf >= 0 ? "#4ade80" : "#f87171", fontFamily: "monospace" }}>{fmtCurrency(cf)}</span></div>
+        <div><span style={{ fontSize: 11, color: "#5a7a9e" }}>vs Base: </span><span style={{ fontSize: 13, fontWeight: 700, color: delta >= 0 ? "#4ade80" : "#f87171", fontFamily: "monospace" }}>{delta >= 0 ? "+" : ""}{fmtCurrency(delta)}</span></div>
+      </div>
+      {extra && <div style={{ fontSize: 11, color: "#6b7f99", marginTop: 4 }}>{extra}</div>}
+    </div>
+  );
+
+  return (
+    <div>
+      <SectionTitle>Deal Optimization</SectionTitle>
+      <Scenario title="Buy Lower (-$5K)" cf={s1CF15} delta={s1CF15 - baseCF15} extra={`Purchase: ${fmtCurrency(s1Purchase)} | Pocket: ${fmtCurrency(s1Pocket)} (${s1Pocket >= basePocket ? "+" : ""}${fmtCurrency(s1Pocket - basePocket)})`} />
+      <Scenario title="Sell Higher (+$10K, +$30/mo)" cf={s2CF15} delta={s2CF15 - baseCF15} extra={`Sale: ${fmtCurrency(s2Sale)} | Buyer pmt: $${s2BuyerPmt}/mo`} />
+      <Scenario title="Better Terms (8% lender)" cf={s3CF15} delta={s3CF15 - baseCF15} extra={`Lender pmt: ${fmtCurrency(s3LenderPmt)} vs ${fmtCurrency(baseLenderPmt)}`} />
+
+      <SectionTitle>Freedom Number Calculator</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Monthly Freedom Target" value={freedomTarget} onChange={set("freedomTarget")} prefix="$" suffix="/mo" />
+        <Input label="Existing Properties" value={existingProperties} onChange={set("existingProperties")} />
+        <Input label="Existing Monthly Income" value={existingMonthlyIncome} onChange={set("existingMonthlyIncome")} prefix="$" suffix="/mo" />
+        <Input label="Months to Acquire Each" value={monthsToAcquire} onChange={set("monthsToAcquire")} suffix="months" />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="Remaining Needed" value={fmtCurrency(remaining)} sub={`of ${fmtCurrency(target)}/mo target`} />
+        <ResultCard label="Properties Needed" value={propertiesNeeded} sub={`@ ${fmtCurrency(baseCF6)}/mo each (yr 6+)`} accent={propertiesNeeded <= 12 ? "green" : "amber"} />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="Timeline" value={`${totalMonths} months`} sub={`${(totalMonths / 12).toFixed(1)} years`} accent={totalMonths <= 60 ? "green" : "amber"} />
+        <ResultCard label="Projected Freedom" value={freedomDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })} sub="All properties post-payoff" accent="green" />
+      </div>
+      <div style={{ background: "#111827", borderRadius: 8, height: 24, overflow: "hidden", position: "relative", border: "1px solid #1e2d42", marginBottom: 16 }}>
+        <div style={{ width: `${progressPct}%`, height: "100%", background: "#16a34a", borderRadius: 4, transition: "width 0.4s" }} />
+        <span style={{ position: "absolute", left: "50%", top: 4, transform: "translateX(-50%)", fontSize: 11, color: "#e8edf5", fontWeight: 700 }}>{progressPct.toFixed(0)}% to freedom</span>
+      </div>
+
+      {portfolio.length > 1 && (<>
+        <SectionTitle>Portfolio Projection</SectionTitle>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11 }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #2a3a52" }}>
+                <th style={{ textAlign: "left", padding: "6px 8px", color: "#8a9bb5", fontWeight: 600 }}>Deal</th>
+                <th style={{ textAlign: "right", padding: "6px 8px", color: "#8a9bb5", fontWeight: 600 }}>Purchase</th>
+                <th style={{ textAlign: "right", padding: "6px 8px", color: "#8a9bb5", fontWeight: 600 }}>Current CF</th>
+                <th style={{ textAlign: "right", padding: "6px 8px", color: "#8a9bb5", fontWeight: 600 }}>Post-Payoff CF</th>
+                <th style={{ textAlign: "center", padding: "6px 8px", color: "#8a9bb5", fontWeight: 600 }}>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {portfolio.map((d, i) => {
+                const a = d.analyzer || {};
+                const lPmt = calcMonthlyPayment(a.lenderAmount || 30000, a.lenderRate || 12, a.lenderTermMonths || 60);
+                const cf15 = (a.buyerMonthlyPayment || 875) - lPmt - (a.monthlyTaxes || 0) - (a.monthlyInsurance || 0);
+                const cf6 = (a.buyerMonthlyPayment || 875) - (a.monthlyTaxes || 0) - (a.monthlyInsurance || 0);
+                const created = d.createdAt ? new Date(d.createdAt) : new Date();
+                const payoff = new Date(created);
+                payoff.setMonth(payoff.getMonth() + (a.lenderTermMonths || 60));
+                const paidOff = new Date() > payoff;
+                return (
+                  <tr key={d.id || i} style={{ borderBottom: "1px solid #1e2d42" }}>
+                    <td style={{ padding: "6px 8px", color: "#e8edf5" }}>{d.name || `Deal ${i + 1}`}</td>
+                    <td style={{ padding: "6px 8px", color: "#60a5fa", textAlign: "right", fontFamily: "monospace" }}>{fmtCurrency(a.purchasePrice || 30000)}</td>
+                    <td style={{ padding: "6px 8px", color: cf15 >= 0 ? "#4ade80" : "#f87171", textAlign: "right", fontFamily: "monospace" }}>{fmtCurrency(paidOff ? cf6 : cf15)}</td>
+                    <td style={{ padding: "6px 8px", color: "#4ade80", textAlign: "right", fontFamily: "monospace" }}>{fmtCurrency(cf6)}</td>
+                    <td style={{ padding: "6px 8px", textAlign: "center" }}><span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 3, fontWeight: 700, background: paidOff ? "#0d3326" : "#332b0d", color: paidOff ? "#4ade80" : "#fbbf24" }}>{paidOff ? "PAID OFF" : "PAYING"}</span></td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </>)}
+    </div>
+  );
 }
 
 function Analyzer({ data, update, assetType }) {
@@ -278,7 +558,7 @@ function Analyzer({ data, update, assetType }) {
 }
 
 function Scorecard({ data, update, assetType }) {
-  const criteria = assetType === "rv" ? RV_CRITERIA : MHP_CRITERIA;
+  const criteria = assetType === "slowflip" ? SF_CRITERIA : assetType === "rv" ? RV_CRITERIA : MHP_CRITERIA;
   const scores = data;
   const toggle = (id) => { const val = scores[id]; if (val === undefined) update({ ...scores, [id]: true }); else if (val === true) update({ ...scores, [id]: false }); else { const next = { ...scores }; delete next[id]; update(next); } };
   const total = criteria.length;
@@ -294,7 +574,7 @@ function Scorecard({ data, update, assetType }) {
   }
   return (
     <div>
-      <SectionTitle>{assetType === "rv" ? "RV Park" : "MHP"} Criteria ({total}-Point)</SectionTitle>
+      <SectionTitle>{assetType === "slowflip" ? "Slow Flip" : assetType === "rv" ? "RV Park" : "MHP"} Criteria ({total}-Point)</SectionTitle>
       <div style={{ fontSize: 11, color: "#5a7a9e", marginBottom: 16 }}>Click: unchecked → pass → fail. 1-5 are mandatory.</div>
       {criteria.map(c => {
         const val = scores[c.id];
@@ -395,7 +675,7 @@ function MarketCheck({ data, update, assetType }) {
   const { states: cs, zip, firecrawlKey, marketData } = data;
   const [scraping, setScraping] = useState(false);
   const [err, setErr] = useState("");
-  const checks = assetType === "rv" ? RV_MARKET_CHECKS : MHP_MARKET_CHECKS;
+  const checks = assetType === "slowflip" ? SF_MARKET_CHECKS : assetType === "rv" ? RV_MARKET_CHECKS : MHP_MARKET_CHECKS;
   const toggle = (id) => { const v = cs[id]; let n; if (v === undefined) n = { ...cs, [id]: true }; else if (v === true) n = { ...cs, [id]: false }; else { n = { ...cs }; delete n[id]; } update({ ...data, states: n }); };
   const total = checks.reduce((s, c) => s + c.items.length, 0);
   const passed = Object.values(cs).filter(v => v === true).length;
@@ -424,7 +704,7 @@ function MarketCheck({ data, update, assetType }) {
         </div>
         {marketData.topEmployers && <div style={{ marginTop: 8, fontSize: 11, color: "#6b7f99" }}>Employers: <span style={{ color: "#8a9bb5" }}>{marketData.topEmployers.join(", ")}</span></div>}
       </div>}
-      <SectionTitle>{assetType === "rv" ? "RV" : "MHP"} Due Diligence</SectionTitle>
+      <SectionTitle>{assetType === "slowflip" ? "Slow Flip" : assetType === "rv" ? "RV" : "MHP"} Due Diligence</SectionTitle>
       {checks.map(section => (
         <div key={section.cat} style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{section.cat}</div>
@@ -471,7 +751,7 @@ export default function App() {
   const addDeal = () => { setDeals(prev => [...prev, defaultDeal()]); setActiveDealIndex(deals.length); setActiveTab(0); };
   const deleteDeal = () => { if (deals.length <= 1) return; if (!confirm("Delete this deal?")) return; setDeals(prev => prev.filter((_, i) => i !== activeDealIndex)); setActiveDealIndex(prev => Math.max(0, prev - 1)); };
   const importDeals = () => { const input = document.createElement("input"); input.type = "file"; input.accept = ".json"; input.onchange = async (e) => { const file = e.target.files[0]; if (!file) return; try { const text = await file.text(); const imported = JSON.parse(text); if (!Array.isArray(imported)) throw new Error("Expected array"); setDeals(prev => [...prev, ...imported]); } catch (err) { alert("Invalid: " + err.message); } }; input.click(); };
-  const accent = assetType === "rv" ? "#8b5cf6" : "#3b82f6";
+  const accent = assetType === "slowflip" ? "#16a34a" : assetType === "rv" ? "#8b5cf6" : "#3b82f6";
   return (
     <div style={{ minHeight: "100vh", background: "#0c1220", color: "#e8edf5", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px 40px" }}>
@@ -483,7 +763,7 @@ export default function App() {
         <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
           <select value={activeDealIndex} onChange={(e) => { setActiveDealIndex(Number(e.target.value)); setActiveTab(0); }}
             style={{ flex: 1, background: "#1a2235", border: "1px solid #2a3a52", borderRadius: 6, color: "#e8edf5", padding: "8px 10px", fontSize: 13, outline: "none", cursor: "pointer" }}>
-            {deals.map((d, i) => <option key={d.id} value={i}>{(d.assetType === "rv" ? "[RV] " : "[MHP] ") + (d.name || `Untitled ${i + 1}`)}</option>)}
+            {deals.map((d, i) => <option key={d.id} value={i}>{(d.assetType === "slowflip" ? "[SF] " : d.assetType === "rv" ? "[RV] " : "[MHP] ") + (d.name || `Untitled ${i + 1}`)}</option>)}
           </select>
           <button onClick={addDeal} style={{ background: "#1a6b4a", border: "none", borderRadius: 6, color: "#4ade80", padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ New</button>
           <button onClick={importDeals} style={{ background: "#1a2d5c", border: "none", borderRadius: 6, color: "#60a5fa", padding: "8px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Import</button>
@@ -495,19 +775,24 @@ export default function App() {
           <div style={{ display: "flex", borderRadius: 8, overflow: "hidden", border: "1px solid #2a3a52" }}>
             <button onClick={() => updateDeal("assetType", "mhp")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "mhp" ? "#1a3a5c" : "#111827", color: assetType === "mhp" ? "#60a5fa" : "#4a5f7a" }}>MHP</button>
             <button onClick={() => updateDeal("assetType", "rv")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "rv" ? "#2d1a5c" : "#111827", color: assetType === "rv" ? "#a78bfa" : "#4a5f7a" }}>RV Park</button>
+            <button onClick={() => updateDeal("assetType", "slowflip")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "slowflip" ? "#0d3326" : "#111827", color: assetType === "slowflip" ? "#4ade80" : "#4a5f7a" }}>Slow Flip</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 2, background: "#111827", borderRadius: 10, padding: 3, marginBottom: 20 }}>
           {TABS.map((tab, i) => <button key={tab} onClick={() => setActiveTab(i)} style={{ flex: 1, padding: "9px 4px", borderRadius: 8, border: "none", cursor: "pointer", background: activeTab === i ? "#1e2d42" : "transparent", color: activeTab === i ? accent : "#5a7a9e", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em" }}>{tab}</button>)}
         </div>
         <div style={{ background: "#111d2e", borderRadius: 12, border: "1px solid #1e2d42", padding: "16px 18px" }}>
-          {activeTab === 0 && <Analyzer data={deal.analyzer} update={(v) => updateDeal("analyzer", v)} assetType={assetType} />}
+          {activeTab === 0 && (assetType === "slowflip"
+            ? <SlowFlipAnalyzer data={deal.analyzer} update={(v) => updateDeal("analyzer", v)} />
+            : <Analyzer data={deal.analyzer} update={(v) => updateDeal("analyzer", v)} assetType={assetType} />)}
           {activeTab === 1 && <Scorecard data={deal.scorecard} update={(v) => updateDeal("scorecard", v)} assetType={assetType} />}
-          {activeTab === 2 && <ValueAdd data={deal.valueAdd} update={(v) => updateDeal("valueAdd", v)} assetType={assetType} />}
+          {activeTab === 2 && (assetType === "slowflip"
+            ? <SlowFlipValueAdd data={deal.valueAdd} update={(v) => updateDeal("valueAdd", v)} analyzerData={deal.analyzer} />
+            : <ValueAdd data={deal.valueAdd} update={(v) => updateDeal("valueAdd", v)} assetType={assetType} />)}
           {activeTab === 3 && <MarketCheck data={deal.marketCheck} update={(v) => updateDeal("marketCheck", v)} assetType={assetType} />}
         </div>
         <div style={{ textAlign: "center", marginTop: 20, fontSize: 10, color: "#2a3a52" }}>
-          Built with AI | {assetType === "rv" ? "Dustin Kercher RV framework" : "Justin Donald MHP framework"}
+          Built with AI | {assetType === "slowflip" ? "Scott Jelinek slow flip framework" : assetType === "rv" ? "Dustin Kercher RV framework" : "Justin Donald MHP framework"}
         </div>
       </div>
     </div>
