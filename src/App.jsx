@@ -56,6 +56,27 @@ const ASSET_CONFIGS = {
       closingCostEstimate: 900, monthlyTaxes: 0, monthlyInsurance: 0,
     },
   },
+  multifamily: {
+    label: "Multi-Family",
+    shortLabel: "MF",
+    accentColor: "#0891b2",
+    expenseOptions: [
+      { value: "classA", label: "Class A (45% expense)", ratio: 0.55 },
+      { value: "classB", label: "Class B (48% expense)", ratio: 0.52 },
+      { value: "classC", label: "Class C (52% expense)", ratio: 0.48 },
+      { value: "classD", label: "Class D (55% expense)", ratio: 0.45 },
+      { value: "newBuild", label: "New construction (40% expense)", ratio: 0.60 },
+    ],
+    lotLabel: "Units",
+    rentLabel: "Avg Rent",
+    pohEnabled: false,
+    reservePerUnit: 2000,
+    unitCountThreshold: 5,
+    defaultVacancy: 0.07,
+    pmRate: 0.10,
+    repairsRate: 0.08,
+    capexRate: 0.08,
+  },
 };
 
 const MHP_CRITERIA = [
@@ -99,6 +120,34 @@ const SF_CRITERIA = [
   { id: 10, name: "Pocket Money at Closing", desc: "GREEN: positive. YELLOW: break-even +/- $500. RED: negative (you bring cash).", hard: false },
   { id: 11, name: "Seller Motivation", desc: "GREEN: distressed/absentee/tax delinquent/estate. YELLOW: listed w/ agent. RED: full retail.", hard: false },
   { id: 12, name: "Property Condition", desc: "GREEN: cosmetic work only. YELLOW: major systems (roof, HVAC). RED: condemned/fire/environmental.", hard: false },
+];
+
+const MF_RESIDENTIAL_CRITERIA = [
+  { id: 1, name: "Positive Cash Flow Day One", desc: "Pure cash flow > $0 after ALL expenses including vacancy, PM, repairs, CapEx, and mortgage.", hard: true },
+  { id: 2, name: "Financing Secured", desc: "Pre-approval or financing path identified (conventional, FHA, portfolio, seller).", hard: true },
+  { id: 3, name: "Market Not Declining", desc: "Population stable or growing. Diverse employers — no single employer >40%.", hard: true },
+  { id: 4, name: "Sufficient Reserves", desc: "6+ months PITI in reserves after closing.", hard: true },
+  { id: 5, name: "MCFPU Meets Target", desc: "$100/unit (<$40K/unit), $150 ($40-75K), $200 ($75-100K), $300+ ($100K+).", hard: false },
+  { id: 6, name: "CoC Return Meets Class Target", desc: "A: 5-7%, B: 7-9%, C: 9-12%, D: 12-20%.", hard: false },
+  { id: 7, name: "Passes 1% Rule", desc: "Monthly gross rent >= 1% of purchase price.", hard: false },
+  { id: 8, name: "Vacancy Realistic", desc: "Budget >= 5% vacancy. A/B: 5-8%, C: 8-10%, D: 10-15%.", hard: false },
+  { id: 9, name: "Condition Matches Strategy", desc: "Turnkey/light rehab/heavy rehab aligned with your capital and skills.", hard: false },
+  { id: 10, name: "DSCR >= 1.25x", desc: "Debt service coverage ratio adequate for lender requirements.", hard: false },
+];
+
+const MF_COMMERCIAL_CRITERIA = [
+  { id: 1, name: "Positive Cash Flow Day One", desc: "Pure cash flow > $0 after ALL expenses including vacancy, PM, repairs, CapEx, and mortgage.", hard: true },
+  { id: 2, name: "Financing Secured", desc: "Commercial loan pre-approval or partnership capital identified.", hard: true },
+  { id: 3, name: "Market Not Declining", desc: "Population stable or growing. Diverse employers — no single employer >40%.", hard: true },
+  { id: 4, name: "Sufficient Reserves", desc: "6 months total expenses + $2K/unit CapEx reserve.", hard: true },
+  { id: 5, name: "Not Class D Without Expertise", desc: "Class D requires proven PM in that market. Exception: you have the team.", hard: true },
+  { id: 6, name: "MCFPU Meets Target", desc: "$100/unit (<$40K/unit), $150 ($40-75K), $200 ($75-100K), $300+ ($100K+).", hard: false },
+  { id: 7, name: "CoC Return Meets Class Target", desc: "A: 5-7%, B: 7-9%, C: 9-12%, D: 12-20%.", hard: false },
+  { id: 8, name: "Cap Rate >= Cost of Capital + 2pts", desc: "Must exceed financing cost. 7% loan = target 9%+ cap.", hard: false },
+  { id: 9, name: "Expense Ratio 35-60%", desc: "Below 35% = incomplete P&L. Above 60% = problem property.", hard: false },
+  { id: 10, name: "DSCR >= 1.25x", desc: "Commercial lender minimum. Target 1.5x for conservative underwriting.", hard: false },
+  { id: 11, name: "Vacancy Budget Realistic", desc: "5-8% Class A/B, 8-10% Class C, 10-15% Class D.", hard: false },
+  { id: 12, name: "Value-Add Identified", desc: "At least one NOI improvement lever: rent increase, expense cut, occupancy, new income.", hard: false },
 ];
 
 const MHP_MARKET_CHECKS = [
@@ -193,12 +242,77 @@ const SF_MARKET_CHECKS = [
   ]},
 ];
 
+const MF_RESIDENTIAL_MARKET_CHECKS = [
+  { cat: "Market Fundamentals", items: [
+    { label: "Population stable or growing", source: "Census / worldpopulationreview.com", id: "mf_pop" },
+    { label: "Job diversity (no single employer >40%)", source: "bestplaces.net", id: "mf_jobs" },
+    { label: "Comparable rents verified", source: "Zillow, Apartments.com, PM quotes", id: "mf_rents" },
+    { label: "Neighborhood class identified (A/B/C/D)", source: "Drive-by, crime stats, school ratings", id: "mf_class" },
+    { label: "Crime stats reviewed", source: "CityProtect.com", id: "mf_crime" },
+  ]},
+  { cat: "Financial Verification", items: [
+    { label: "Lease agreements reviewed for all units", source: "Terms, rents, deposits, expiration", id: "mf_leases" },
+    { label: "Actual rents match rent roll", source: "Verify each unit", id: "mf_rentroll" },
+    { label: "Tax bills verified (reassessment risk)", source: "County assessor", id: "mf_taxes" },
+    { label: "Insurance quotes obtained", source: "Landlord/dwelling policy", id: "mf_insurance" },
+    { label: "Utility costs verified (if owner-paid)", source: "12-24 months of bills", id: "mf_utilities" },
+  ]},
+  { cat: "Property Inspection", items: [
+    { label: "Roof age and condition", source: "Inspector", id: "mf_roof" },
+    { label: "HVAC age and working condition", source: "Each unit", id: "mf_hvac" },
+    { label: "Plumbing material identified", source: "Copper/PEX = good", id: "mf_plumbing" },
+    { label: "Electrical panels adequate (100+ amp/unit)", source: "Inspector", id: "mf_electrical" },
+    { label: "Foundation inspected", source: "Cracks, settling, water intrusion", id: "mf_foundation" },
+  ]},
+  { cat: "Deal Structure", items: [
+    { label: "Financing pre-approved", source: "Conventional, FHA, or portfolio", id: "mf_financing" },
+    { label: "Reserves sufficient (6 months PITI)", source: "Post-closing cash position", id: "mf_reserves" },
+    { label: "Seller financing asked 3x", source: "Beginning, middle, end", id: "mf_sf" },
+  ]},
+];
+
+const MF_COMMERCIAL_MARKET_CHECKS = [
+  { cat: "Market Fundamentals", items: [
+    { label: "Population stable or growing", source: "Census / worldpopulationreview.com", id: "mfc_pop" },
+    { label: "Job diversity (no single employer >40%)", source: "bestplaces.net", id: "mfc_jobs" },
+    { label: "Comparable rents verified", source: "PM quotes, CoStar if available", id: "mfc_rents" },
+    { label: "Neighborhood class identified (A/B/C/D)", source: "Drive-by, crime stats", id: "mfc_class" },
+    { label: "Submarket trends assessed", source: "Improving/stable/declining", id: "mfc_submarket" },
+  ]},
+  { cat: "Financial Verification", items: [
+    { label: "Monthly P&L (2-3 years, not annual-only)", source: "Request from seller", id: "mfc_pnl" },
+    { label: "Rent roll matches leases", source: "Verify each unit", id: "mfc_rentroll" },
+    { label: "Expense ratio within 35-60% range", source: "Below 35% = incomplete", id: "mfc_expratio" },
+    { label: "Not straight-lined", source: "Identical months = fabricated", id: "mfc_straightline" },
+    { label: "2020-2021 financials discounted", source: "COVID-distorted", id: "mfc_covid" },
+    { label: "Payroll on P&L", source: "Zero payroll = owner labor not costed", id: "mfc_payroll" },
+    { label: "Tax reassessment modeled", source: "Purchase price x mill rate", id: "mfc_taxreset" },
+    { label: "Insurance quotes + claims history", source: "Request loss runs", id: "mfc_insurance" },
+  ]},
+  { cat: "Property Inspection", items: [
+    { label: "Roof age and condition (each building)", source: "Inspector", id: "mfc_roof" },
+    { label: "HVAC age per unit", source: "Inspector", id: "mfc_hvac" },
+    { label: "Plumbing material and condition", source: "Copper/PEX = good, galvanized = replace", id: "mfc_plumbing" },
+    { label: "Electrical service adequate", source: "100+ amp per unit", id: "mfc_electrical" },
+    { label: "Foundation and structural", source: "Inspector", id: "mfc_foundation" },
+    { label: "Parking lot / exterior condition", source: "Walk the property", id: "mfc_exterior" },
+    { label: "Unit interiors inspected (25-50% sample)", source: "Walk units", id: "mfc_interiors" },
+  ]},
+  { cat: "Operational", items: [
+    { label: "PM identified or self-management plan", source: "8-10% of gross rent budget", id: "mfc_pm" },
+    { label: "CapEx budget built (13 categories)", source: "Remaining life per system", id: "mfc_capex" },
+    { label: "Reserves budgeted ($2K/unit)", source: "Raised at acquisition", id: "mfc_reserves" },
+    { label: "Value-add plan documented", source: "Which levers, timeline, cost", id: "mfc_valueadd" },
+    { label: "Seller financing asked 3x", source: "Beginning, middle, end", id: "mfc_sf" },
+  ]},
+];
+
 function defaultDeal() {
   return {
     id: crypto.randomUUID(), name: "", assetType: "mhp", createdAt: new Date().toISOString(),
-    analyzer: { lots: 50, lotRent: 200, utilPayer: "tenant", parkType: "mixed", targetCap: 10, pohCount: 5, pohDecade: "90s", askingPrice: 900000, interestRate: 5, seasonalWorstPct: 50, purchasePrice: 30000, lenderAmount: 30000, lenderRate: 12, lenderTermMonths: 60, salePrice: 89000, buyerDownPayment: 3000, buyerMonthlyPayment: 875, buyerTermMonths: 360, closingCostEstimate: 900, monthlyTaxes: 0, monthlyInsurance: 0 },
+    analyzer: { lots: 50, lotRent: 200, utilPayer: "tenant", parkType: "mixed", targetCap: 10, pohCount: 5, pohDecade: "90s", askingPrice: 900000, interestRate: 5, seasonalWorstPct: 50, purchasePrice: 30000, lenderAmount: 30000, lenderRate: 12, lenderTermMonths: 60, salePrice: 89000, buyerDownPayment: 3000, buyerMonthlyPayment: 875, buyerTermMonths: 360, closingCostEstimate: 900, monthlyTaxes: 0, monthlyInsurance: 0, mfUnits: 4, mfAvgRent: 1000, mfOtherIncome: 0, mfPropertyClass: "classB", mfPurchasePrice: 300000, mfDownPct: 25, mfInterestRate: 7, mfLoanTermYears: 30, mfRehabBudget: 0, mfClosingCosts: 7500, mfVacancyPct: 7, mfPmPct: 10, mfRepairsPct: 8, mfCapexPct: 8, mfOwnerPaysUtilities: false, mfUtilityCostPerUnit: 100, mfTargetCap: 8, mfHouseHack: false },
     scorecard: {},
-    valueAdd: { currentLots: 50, currentRent: 175, marketRent: 280, currentOccupancy: 70, targetOccupancy: 90, utilPayer: "park", capRate: 10, utilCostPerSite: 75, freedomTarget: 10000, existingProperties: 0, existingMonthlyIncome: 0, monthsToAcquire: 2 },
+    valueAdd: { currentLots: 50, currentRent: 175, marketRent: 280, currentOccupancy: 70, targetOccupancy: 90, utilPayer: "park", capRate: 10, utilCostPerSite: 75, freedomTarget: 10000, existingProperties: 0, existingMonthlyIncome: 0, monthsToAcquire: 2, mfCurrentUnits: 4, mfCurrentRent: 900, mfMarketRent: 1100, mfCurrentOccupancy: 85, mfTargetOccupancy: 95, mfPropertyClass: "classB", mfCapRate: 7, mfUtilPayer: "tenant", mfUtilCostPerUnit: 100, mfDesiredAnnualIncome: 60000 },
     marketCheck: { states: {}, zip: "", firecrawlKey: "", marketData: null },
   };
 }
@@ -277,6 +391,371 @@ function calcImpliedRate(principal, monthlyPayment, termMonths) {
     if (Math.abs(pmt - monthlyPayment) < 0.01) break;
   }
   return rate * 12 * 100;
+}
+
+function getMcfpuTarget(pricePerUnit) {
+  if (pricePerUnit <= 40000) return 100;
+  if (pricePerUnit <= 75000) return 150;
+  if (pricePerUnit <= 100000) return 200;
+  return 300;
+}
+
+function getCocTarget(propertyClass) {
+  const targets = { classA: 0.06, classB: 0.08, classC: 0.105, classD: 0.16, newBuild: 0.06 };
+  return targets[propertyClass] || 0.08;
+}
+
+function MultifamilyAnalyzer({ data, update, onUnitThresholdCross }) {
+  const config = ASSET_CONFIGS.multifamily;
+  const { mfUnits, mfAvgRent, mfOtherIncome, mfPropertyClass, mfPurchasePrice, mfDownPct, mfInterestRate, mfLoanTermYears, mfRehabBudget, mfClosingCosts, mfVacancyPct, mfPmPct, mfRepairsPct, mfCapexPct, mfOwnerPaysUtilities, mfUtilityCostPerUnit, mfTargetCap, mfHouseHack } = data;
+  const set = (key) => (val) => update({ ...data, [key]: val });
+
+  const setUnits = (val) => {
+    const prev = mfUnits;
+    const crossed = (prev < 5 && val >= 5) || (prev >= 5 && val < 5);
+    update({ ...data, mfUnits: val });
+    if (crossed && onUnitThresholdCross) onUnitThresholdCross();
+  };
+
+  const isCommercial = (mfUnits || 4) >= 5;
+  const classOpt = config.expenseOptions.find(o => o.value === mfPropertyClass) || config.expenseOptions[1];
+  const expenseRatio = 1 - classOpt.ratio;
+
+  const units = mfUnits || 1;
+  const downPct = mfHouseHack && !isCommercial ? 3.5 : (mfDownPct || 25);
+  const grossMonthlyRent = units * (mfAvgRent || 0);
+  const otherMonthlyIncome = units * (mfOtherIncome || 0);
+  const effectiveMonthlyIncome = (grossMonthlyRent + otherMonthlyIncome) * (1 - (mfVacancyPct || 0) / 100);
+
+  const monthlyPM = effectiveMonthlyIncome * ((mfPmPct || 0) / 100);
+  const monthlyRepairs = effectiveMonthlyIncome * ((mfRepairsPct || 0) / 100);
+  const monthlyCapex = effectiveMonthlyIncome * ((mfCapexPct || 0) / 100);
+  const monthlyUtilities = mfOwnerPaysUtilities ? units * (mfUtilityCostPerUnit || 0) : 0;
+  const totalMonthlyOpex = monthlyPM + monthlyRepairs + monthlyCapex + monthlyUtilities;
+
+  const monthlyNOI = effectiveMonthlyIncome - totalMonthlyOpex;
+  const annualNOI = monthlyNOI * 12;
+
+  const loanAmount = (mfPurchasePrice || 0) * (1 - downPct / 100);
+  const monthlyMortgage = loanAmount > 0 ? calcMonthlyPayment(loanAmount, mfInterestRate || 0, (mfLoanTermYears || 30) * 12) : 0;
+  const monthlyPureCashFlow = monthlyNOI - monthlyMortgage;
+  const annualPureCashFlow = monthlyPureCashFlow * 12;
+
+  const mcfpu = units > 0 ? monthlyPureCashFlow / units : 0;
+  const downPaymentAmount = (mfPurchasePrice || 0) * (downPct / 100);
+  const totalCashInvested = downPaymentAmount + (mfRehabBudget || 0) + (mfClosingCosts || 0);
+  const cocReturn = totalCashInvested > 0 ? annualPureCashFlow / totalCashInvested : 0;
+  const dscr = (monthlyMortgage * 12) > 0 ? annualNOI / (monthlyMortgage * 12) : 0;
+  const onePercentRule = (mfPurchasePrice || 0) > 0 ? grossMonthlyRent / (mfPurchasePrice || 1) : 0;
+  const capRate = (mfPurchasePrice || 0) > 0 ? annualNOI / (mfPurchasePrice || 1) : 0;
+
+  const pricePerUnit = units > 0 ? (mfPurchasePrice || 0) / units : 0;
+  const mcfpuTarget = getMcfpuTarget(pricePerUnit);
+  const cocTarget = getCocTarget(mfPropertyClass);
+
+  const mcfpuAccent = mcfpu >= mcfpuTarget ? "green" : mcfpu >= mcfpuTarget * 0.7 ? "amber" : "red";
+  const cocAccent = cocReturn >= cocTarget ? "green" : cocReturn >= cocTarget * 0.7 ? "amber" : "red";
+  const dscrAccent = dscr >= 1.25 ? "green" : dscr >= 1.0 ? "amber" : "red";
+  const oneAccent = onePercentRule >= 0.01 ? "green" : onePercentRule >= 0.008 ? "amber" : "red";
+
+  // Forced appreciation for commercial
+  const [targetRentIncrease, setTargetRentIncrease] = useState(100);
+  const newGrossMonthly = units * ((mfAvgRent || 0) + targetRentIncrease);
+  const newEffective = (newGrossMonthly + otherMonthlyIncome) * (1 - (mfVacancyPct || 0) / 100);
+  const newOpex = newEffective * ((mfPmPct || 0) / 100) + newEffective * ((mfRepairsPct || 0) / 100) + newEffective * ((mfCapexPct || 0) / 100) + monthlyUtilities;
+  const newAnnualNOI = (newEffective - newOpex) * 12;
+  const newValue = (mfTargetCap || 8) > 0 ? newAnnualNOI / ((mfTargetCap || 8) / 100) : 0;
+  const noiIncrease = newAnnualNOI - annualNOI;
+  const valueIncrease = newValue - ((mfTargetCap || 8) > 0 ? annualNOI / ((mfTargetCap || 8) / 100) : 0);
+
+  let verdict, verdictColor;
+  if (monthlyPureCashFlow <= 0) { verdict = "NEGATIVE CASH FLOW"; verdictColor = "#f87171"; }
+  else if (dscr < 1.0) { verdict = "DSCR BELOW 1.0"; verdictColor = "#f87171"; }
+  else if (mcfpu < mcfpuTarget * 0.7) { verdict = "BELOW TARGETS"; verdictColor = "#f87171"; }
+  else if (mcfpu < mcfpuTarget || cocReturn < cocTarget) { verdict = "CLOSE — NEGOTIATE"; verdictColor = "#fbbf24"; }
+  else { verdict = "MEETS CRITERIA"; verdictColor = "#4ade80"; }
+
+  return (
+    <div>
+      <div style={{ padding: "10px 14px", borderRadius: 8, marginBottom: 16, textAlign: "center", fontWeight: 700, fontSize: 12, letterSpacing: "0.06em", background: isCommercial ? "#0c3a42" : "#1a2a5c", color: isCommercial ? "#22d3ee" : "#60a5fa", border: `1px solid ${isCommercial ? "#155e6b" : "#2a3a6b"}` }}>
+        {isCommercial ? "COMMERCIAL — Valued on Income" : "RESIDENTIAL — Valued on Comps"} ({units} units)
+      </div>
+
+      <SectionTitle>Property Inputs</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Number of Units" value={mfUnits} onChange={setUnits} hint={isCommercial ? "5+ = commercial" : "< 5 = residential"} />
+        <Input label="Avg Rent / Unit" value={mfAvgRent} onChange={set("mfAvgRent")} prefix="$" suffix="/mo" />
+        <Input label="Other Income / Unit" value={mfOtherIncome} onChange={set("mfOtherIncome")} prefix="$" suffix="/mo" hint="Laundry, parking, storage" />
+        <Select label="Property Class" value={mfPropertyClass} onChange={set("mfPropertyClass")} options={config.expenseOptions} hint={`${(expenseRatio * 100).toFixed(0)}% expense ratio`} />
+      </div>
+
+      <SectionTitle>Financing</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Purchase Price" value={mfPurchasePrice} onChange={set("mfPurchasePrice")} prefix="$" />
+        <Input label="Down Payment" value={downPct} onChange={set("mfDownPct")} suffix="%" hint={mfHouseHack && !isCommercial ? "FHA 3.5%" : `${fmtCurrency(downPaymentAmount)}`} />
+        <Input label="Interest Rate" value={mfInterestRate} onChange={set("mfInterestRate")} suffix="%" />
+        <Input label="Loan Term" value={mfLoanTermYears} onChange={set("mfLoanTermYears")} suffix="years" />
+        <Input label="Rehab Budget" value={mfRehabBudget} onChange={set("mfRehabBudget")} prefix="$" />
+        <Input label="Closing Costs" value={mfClosingCosts} onChange={set("mfClosingCosts")} prefix="$" />
+      </div>
+
+      <SectionTitle>Operating Expenses</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Vacancy" value={mfVacancyPct} onChange={set("mfVacancyPct")} suffix="%" hint="A/B: 5-8%, C: 8-10%, D: 10-15%" />
+        <Input label="Property Mgmt" value={mfPmPct} onChange={set("mfPmPct")} suffix="%" hint={fmtCurrency(monthlyPM) + "/mo"} />
+        <Input label="Repairs & Maint" value={mfRepairsPct} onChange={set("mfRepairsPct")} suffix="%" hint={fmtCurrency(monthlyRepairs) + "/mo"} />
+        <Input label="CapEx Reserve" value={mfCapexPct} onChange={set("mfCapexPct")} suffix="%" hint={fmtCurrency(monthlyCapex) + "/mo"} />
+      </div>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginBottom: 14 }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <input type="checkbox" checked={mfOwnerPaysUtilities || false} onChange={(e) => update({ ...data, mfOwnerPaysUtilities: e.target.checked })} />
+          <span style={{ fontSize: 12, color: "#8a9bb5" }}>Owner pays utilities</span>
+        </label>
+        {mfOwnerPaysUtilities && <Input label="" value={mfUtilityCostPerUnit} onChange={set("mfUtilityCostPerUnit")} prefix="$" suffix="/unit/mo" small />}
+      </div>
+      {!isCommercial && (
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input type="checkbox" checked={mfHouseHack || false} onChange={(e) => update({ ...data, mfHouseHack: e.target.checked })} />
+            <span style={{ fontSize: 12, color: "#8a9bb5" }}>House hack (FHA 3.5% down)</span>
+          </label>
+        </div>
+      )}
+
+      <SectionTitle>Four-Square Analysis</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+        <div style={{ background: "#0d1f33", border: "1px solid #1a3a5c", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Income</div>
+          <div style={{ fontSize: 12, color: "#8a9bb5", lineHeight: 1.8, fontFamily: "monospace" }}>
+            Gross Rent: <span style={{ color: "#e8edf5" }}>{fmtCurrency(grossMonthlyRent)}</span><br />
+            Other: <span style={{ color: "#e8edf5" }}>{fmtCurrency(otherMonthlyIncome)}</span><br />
+            Vacancy: <span style={{ color: "#f87171" }}>-{fmtCurrency((grossMonthlyRent + otherMonthlyIncome) * (mfVacancyPct / 100))}</span><br />
+            <strong style={{ color: "#4ade80" }}>Effective: {fmtCurrency(effectiveMonthlyIncome)}</strong>
+          </div>
+        </div>
+        <div style={{ background: "#1f0d0d", border: "1px solid #5c1a1a", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 11, color: "#f87171", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Expenses</div>
+          <div style={{ fontSize: 12, color: "#8a9bb5", lineHeight: 1.8, fontFamily: "monospace" }}>
+            PM: <span style={{ color: "#e8edf5" }}>{fmtCurrency(monthlyPM)}</span><br />
+            Repairs: <span style={{ color: "#e8edf5" }}>{fmtCurrency(monthlyRepairs)}</span><br />
+            CapEx: <span style={{ color: "#e8edf5" }}>{fmtCurrency(monthlyCapex)}</span><br />
+            {mfOwnerPaysUtilities && <>Utilities: <span style={{ color: "#e8edf5" }}>{fmtCurrency(monthlyUtilities)}</span><br /></>}
+            <strong style={{ color: "#f87171" }}>Total: {fmtCurrency(totalMonthlyOpex)}</strong>
+          </div>
+        </div>
+        <div style={{ background: monthlyPureCashFlow >= 0 ? "#0d2e1f" : "#2e0d0d", border: `1px solid ${monthlyPureCashFlow >= 0 ? "#1a5c3a" : "#5c1a1a"}`, borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 11, color: monthlyPureCashFlow >= 0 ? "#4ade80" : "#f87171", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Cash Flow</div>
+          <div style={{ fontSize: 12, color: "#8a9bb5", lineHeight: 1.8, fontFamily: "monospace" }}>
+            NOI: <span style={{ color: "#e8edf5" }}>{fmtCurrency(monthlyNOI)}</span><br />
+            Mortgage: <span style={{ color: "#f87171" }}>-{fmtCurrency(monthlyMortgage)}</span><br />
+            <strong style={{ color: monthlyPureCashFlow >= 0 ? "#4ade80" : "#f87171" }}>Pure CF: {fmtCurrency(monthlyPureCashFlow)}/mo</strong><br />
+            <span style={{ color: "#60a5fa" }}>MCFPU: {fmtCurrency(mcfpu)}</span>
+          </div>
+        </div>
+        <div style={{ background: "#0d1f33", border: "1px solid #1a3a5c", borderRadius: 8, padding: "12px 14px" }}>
+          <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, marginBottom: 8, textTransform: "uppercase" }}>Returns</div>
+          <div style={{ fontSize: 12, color: "#8a9bb5", lineHeight: 1.8, fontFamily: "monospace" }}>
+            CoC Return: <span style={{ color: cocReturn >= cocTarget ? "#4ade80" : "#fbbf24" }}>{fmtPct(cocReturn)}</span><br />
+            Cash Invested: <span style={{ color: "#e8edf5" }}>{fmtCurrency(totalCashInvested)}</span><br />
+            Annual CF: <span style={{ color: "#e8edf5" }}>{fmtCurrency(annualPureCashFlow)}</span>
+          </div>
+        </div>
+      </div>
+
+      <SectionTitle>Key Metrics</SectionTitle>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="MCFPU" value={fmtCurrency(mcfpu)} sub={`Target: ${fmtCurrency(mcfpuTarget)} @ ${fmtCurrency(pricePerUnit)}/unit`} accent={mcfpuAccent} />
+        <ResultCard label="CoC Return" value={fmtPct(cocReturn)} sub={`Target: ${fmtPct(cocTarget)} (${mfPropertyClass.replace("class", "Class ")})`} accent={cocAccent} />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+        <ResultCard label="1% Rule" value={fmtPct(onePercentRule)} sub={onePercentRule >= 0.01 ? "Passes" : "Below 1%"} accent={oneAccent} />
+        <ResultCard label="DSCR" value={dscr.toFixed(2) + "x"} sub={dscr >= 1.25 ? "Meets 1.25x" : "Below 1.25x"} accent={dscrAccent} />
+      </div>
+
+      {isCommercial && (<>
+        <SectionTitle>Cap Rate & Forced Appreciation</SectionTitle>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 12 }}>
+          <ResultCard label="Cap Rate" value={fmtPct(capRate)} sub={`NOI: ${fmtCurrency(annualNOI)}`} accent={capRate >= (mfTargetCap || 8) / 100 ? "green" : "amber"} />
+          <Input label="Target Cap Rate" value={mfTargetCap} onChange={set("mfTargetCap")} suffix="%" />
+        </div>
+        <div style={{ marginBottom: 12 }}>
+          <Input label="Target Rent Increase / Unit" value={targetRentIncrease} onChange={setTargetRentIncrease} prefix="$" suffix="/mo" hint="Preview forced appreciation" />
+        </div>
+        <div style={{ padding: "12px 14px", background: "#0c3a42", border: "1px solid #155e6b", borderRadius: 8, marginBottom: 12 }}>
+          <div style={{ fontSize: 11, color: "#22d3ee", fontWeight: 600, marginBottom: 6 }}>TURNER'S FORMULA</div>
+          <div style={{ fontSize: 12, color: "#8a9bb5", fontFamily: "monospace", lineHeight: 1.8 }}>
+            ${targetRentIncrease}/mo x {units} units x 12 = <span style={{ color: "#22d3ee" }}>{fmtCurrency(noiIncrease)}</span> NOI increase<br />
+            {fmtCurrency(noiIncrease)} / {(mfTargetCap || 8)}% cap = <span style={{ color: "#4ade80", fontWeight: 700 }}>{fmtCurrency(valueIncrease)}</span> value increase
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+          <ResultCard label="New NOI" value={fmtCurrency(newAnnualNOI)} sub={`+${fmtCurrency(noiIncrease)}/yr`} accent="green" />
+          <ResultCard label="New Value" value={fmtCurrency(newValue)} sub={`+${fmtCurrency(valueIncrease)} equity`} accent="green" />
+        </div>
+      </>)}
+
+      <div style={{ marginTop: 20, padding: "16px", background: "#111827", borderRadius: 10, border: "1px solid #1e2d42", textAlign: "center" }}>
+        <div style={{ fontSize: 11, color: "#5a7a9e", fontWeight: 600, marginBottom: 6 }}>VERDICT</div>
+        <div style={{ fontSize: 18, fontWeight: 800, color: verdictColor }}>{verdict}</div>
+      </div>
+      <div style={{ marginTop: 12, padding: "12px 14px", background: "#111827", borderRadius: 8, border: "1px solid #1e2d42" }}>
+        <div style={{ fontSize: 11, color: "#5a7a9e", fontWeight: 600, marginBottom: 6 }}>DEAL SUMMARY</div>
+        <div style={{ fontSize: 12, color: "#8a9bb5", fontFamily: "monospace", lineHeight: 1.8 }}>
+          {units} units @ <span style={{ color: "#60a5fa" }}>{fmtCurrency(mfAvgRent)}</span>/mo | Purchase: <span style={{ color: "#60a5fa" }}>{fmtCurrency(mfPurchasePrice)}</span><br />
+          Down: <span style={{ color: "#60a5fa" }}>{fmtCurrency(downPaymentAmount)}</span> ({downPct}%) | Mortgage: <span style={{ color: "#60a5fa" }}>{fmtCurrency(monthlyMortgage)}</span>/mo<br />
+          Pure CF: <span style={{ color: monthlyPureCashFlow >= 0 ? "#4ade80" : "#f87171" }}>{fmtCurrency(monthlyPureCashFlow)}</span>/mo | MCFPU: <span style={{ color: mcfpu >= mcfpuTarget ? "#4ade80" : "#fbbf24" }}>{fmtCurrency(mcfpu)}</span> | CoC: <span style={{ color: cocReturn >= cocTarget ? "#4ade80" : "#fbbf24" }}>{fmtPct(cocReturn)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MultifamilyValueAdd({ data, update, analyzerData }) {
+  const set = (key) => (val) => update({ ...data, [key]: val });
+  const { mfCurrentUnits, mfCurrentRent, mfMarketRent, mfCurrentOccupancy, mfTargetOccupancy, mfPropertyClass, mfCapRate, mfUtilPayer, mfUtilCostPerUnit, mfDesiredAnnualIncome } = data;
+  const isCommercial = (analyzerData?.mfUnits || 4) >= 5;
+  const units = mfCurrentUnits || 1;
+  const capRate = (mfCapRate || 7) / 100;
+
+  const classOpt = ASSET_CONFIGS.multifamily.expenseOptions.find(o => o.value === mfPropertyClass) || ASSET_CONFIGS.multifamily.expenseOptions[1];
+  const expMult = classOpt.ratio;
+
+  // Current state
+  const occupiedUnits = Math.round(units * ((mfCurrentOccupancy || 85) / 100));
+  const currentGross = occupiedUnits * (mfCurrentRent || 0) * 12;
+  const currentNOI = currentGross * expMult;
+  const currentValue = capRate > 0 ? currentNOI / capRate : 0;
+
+  // After rent increase
+  const afterRentGross = occupiedUnits * (mfMarketRent || 0) * 12;
+  const afterRentNOI = afterRentGross * expMult;
+  const afterRentValue = capRate > 0 ? afterRentNOI / capRate : 0;
+
+  // After vacancy reduction
+  const targetUnits = Math.round(units * ((mfTargetOccupancy || 95) / 100));
+  const afterFillGross = targetUnits * (mfCurrentRent || 0) * 12;
+  const afterFillNOI = afterFillGross * expMult;
+  const afterFillValue = capRate > 0 ? afterFillNOI / capRate : 0;
+
+  // After expense reduction (bill back utilities)
+  const billbackExpMult = mfUtilPayer === "tenant" ? expMult : expMult + 0.05;
+  const afterExpNOI = currentGross * billbackExpMult;
+  const afterExpValue = capRate > 0 ? afterExpNOI / capRate : 0;
+
+  // All combined
+  const allGross = targetUnits * (mfMarketRent || 0) * 12;
+  const allNOI = allGross * billbackExpMult;
+  const allValue = capRate > 0 ? allNOI / capRate : 0;
+
+  // New MCFPU/CoC after all improvements (simplified without mortgage)
+  const combinedMonthlyNOI = allNOI / 12;
+  const currentMonthlyNOI = currentNOI / 12;
+  const noiImprovement = combinedMonthlyNOI - currentMonthlyNOI;
+
+  // Turner's formula
+  const rentIncrease = (mfMarketRent || 0) - (mfCurrentRent || 0);
+  const turnerNOI = rentIncrease * units * 12;
+  const turnerValue = capRate > 0 ? turnerNOI / capRate : 0;
+
+  // Freedom Number Calculator
+  const leanFI = 30000;
+  const regularFI = 60000;
+  const fatFI = 120000;
+  const desired = mfDesiredAnnualIncome || 60000;
+  const currentAnnualCF = currentNOI;
+  const unitsForLean = currentMonthlyNOI > 0 ? Math.ceil((leanFI / 12) / currentMonthlyNOI) : 0;
+  const unitsForRegular = currentMonthlyNOI > 0 ? Math.ceil((regularFI / 12) / currentMonthlyNOI) : 0;
+  const unitsForFat = currentMonthlyNOI > 0 ? Math.ceil((fatFI / 12) / currentMonthlyNOI) : 0;
+  const unitsForDesired = currentMonthlyNOI > 0 ? Math.ceil((desired / 12) / currentMonthlyNOI) : 0;
+
+  const Bar = ({ label, noi, val, maxVal, color }) => {
+    const pct = maxVal > 0 ? Math.min((val / maxVal) * 100, 100) : 0;
+    return (<div style={{ marginBottom: 14 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "#c8d5e6" }}>{label}</span>
+        <span style={{ fontSize: 12, fontWeight: 700, color, fontFamily: "monospace" }}>{fmtCurrency(val)}</span>
+      </div>
+      <div style={{ background: "#111827", borderRadius: 4, height: 20, overflow: "hidden", position: "relative" }}>
+        <div style={{ width: `${pct}%`, height: "100%", background: color, borderRadius: 4, transition: "width 0.4s" }} />
+        <span style={{ position: "absolute", right: 8, top: 2, fontSize: 10, color: "#8a9bb5" }}>NOI: {fmtCurrency(noi)}</span>
+      </div>
+    </div>);
+  };
+
+  return (
+    <div>
+      <SectionTitle>Current State</SectionTitle>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0 16px" }}>
+        <Input label="Total Units" value={mfCurrentUnits} onChange={set("mfCurrentUnits")} />
+        <Input label="Current Rent" value={mfCurrentRent} onChange={set("mfCurrentRent")} prefix="$" suffix="/mo" />
+        <Input label="Market Rent" value={mfMarketRent} onChange={set("mfMarketRent")} prefix="$" suffix="/mo" hint="Comparable properties" />
+        <Input label="Current Occupancy" value={mfCurrentOccupancy} onChange={set("mfCurrentOccupancy")} suffix="%" />
+        <Input label="Target Occupancy" value={mfTargetOccupancy} onChange={set("mfTargetOccupancy")} suffix="%" />
+        <Select label="Property Class" value={mfPropertyClass} onChange={set("mfPropertyClass")} options={ASSET_CONFIGS.multifamily.expenseOptions} />
+        <Input label="Cap Rate" value={mfCapRate} onChange={set("mfCapRate")} suffix="%" />
+        <Select label="Utility Payer" value={mfUtilPayer} onChange={set("mfUtilPayer")} options={[{ value: "tenant", label: "Tenants pay" }, { value: "owner", label: "Owner pays (bill back)" }]} />
+      </div>
+
+      <SectionTitle>Improvement Impact</SectionTitle>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <ResultCard label="Rent Increase Impact" value={fmtCurrency((afterRentNOI - currentNOI) / 12)} sub={`${fmtCurrency(mfCurrentRent)} to ${fmtCurrency(mfMarketRent)}/mo per unit`} accent="green" />
+        <ResultCard label="Vacancy Reduction" value={fmtCurrency((afterFillNOI - currentNOI) / 12)} sub={`${mfCurrentOccupancy}% to ${mfTargetOccupancy}% occupancy`} accent="green" />
+      </div>
+      <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 16 }}>
+        <ResultCard label="Combined Monthly NOI" value={fmtCurrency(combinedMonthlyNOI)} sub={`+${fmtCurrency(noiImprovement)}/mo improvement`} accent="green" />
+        <ResultCard label="NOI Increase" value={fmtCurrency(allNOI - currentNOI)} sub={`${fmtCurrency(currentNOI)} to ${fmtCurrency(allNOI)}/yr`} accent="green" />
+      </div>
+
+      {isCommercial && (<>
+        <SectionTitle>Forced Appreciation @ {mfCapRate}% Cap</SectionTitle>
+        <div style={{ padding: "16px", background: "#111827", borderRadius: 10, border: "1px solid #1e2d42" }}>
+          <Bar label="Current Value" noi={currentNOI} val={currentValue} maxVal={allValue} color="#3b5998" />
+          <Bar label="After Rent Increase" noi={afterRentNOI} val={afterRentValue} maxVal={allValue} color="#2563eb" />
+          <Bar label="After Expense Reduction" noi={afterExpNOI} val={afterExpValue} maxVal={allValue} color="#7c3aed" />
+          <Bar label={`Fill to ${mfTargetOccupancy}%`} noi={afterFillNOI} val={afterFillValue} maxVal={allValue} color="#0891b2" />
+          <div style={{ borderTop: "1px solid #1e2d42", paddingTop: 12, marginTop: 8 }}>
+            <Bar label="ALL COMBINED" noi={allNOI} val={allValue} maxVal={allValue} color="#4ade80" />
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 16, marginBottom: 16 }}>
+          <ResultCard label="Equity Created" value={fmtCurrency(allValue - currentValue)} sub={`${currentValue > 0 ? ((allValue / currentValue - 1) * 100).toFixed(0) : 0}% increase`} accent="green" />
+        </div>
+
+        <div style={{ padding: "12px 14px", background: "#0c3a42", border: "1px solid #155e6b", borderRadius: 8, marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: "#22d3ee", fontWeight: 600, marginBottom: 6 }}>TURNER'S FORMULA</div>
+          <div style={{ fontSize: 12, color: "#8a9bb5", fontFamily: "monospace", lineHeight: 1.8 }}>
+            ${rentIncrease}/mo x {units} units x 12 = <span style={{ color: "#22d3ee" }}>{fmtCurrency(turnerNOI)}</span> NOI increase<br />
+            {fmtCurrency(turnerNOI)} / {mfCapRate}% cap = <span style={{ color: "#4ade80", fontWeight: 700 }}>{fmtCurrency(turnerValue)}</span> value increase
+          </div>
+        </div>
+      </>)}
+
+      <SectionTitle>Freedom Number Calculator</SectionTitle>
+      <Input label="Desired Annual Income" value={mfDesiredAnnualIncome} onChange={set("mfDesiredAnnualIncome")} prefix="$" suffix="/yr" />
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 16 }}>
+        <div style={{ background: "#111827", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "#5a7a9e", fontWeight: 600 }}>LEAN FI ($30K)</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#60a5fa", fontFamily: "monospace" }}>{unitsForLean}</div>
+          <div style={{ fontSize: 10, color: "#5a7a9e" }}>units needed</div>
+        </div>
+        <div style={{ background: "#111827", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "#5a7a9e", fontWeight: 600 }}>REGULAR FI ($60K)</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#4ade80", fontFamily: "monospace" }}>{unitsForRegular}</div>
+          <div style={{ fontSize: 10, color: "#5a7a9e" }}>units needed</div>
+        </div>
+        <div style={{ background: "#111827", border: "1px solid #1e2d42", borderRadius: 8, padding: "10px 12px", textAlign: "center" }}>
+          <div style={{ fontSize: 10, color: "#5a7a9e", fontWeight: 600 }}>FAT FI ($120K)</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: "#fbbf24", fontFamily: "monospace" }}>{unitsForFat}</div>
+          <div style={{ fontSize: 10, color: "#5a7a9e" }}>units needed</div>
+        </div>
+      </div>
+      <ResultCard label={`Your Target (${fmtCurrency(desired)}/yr)`} value={`${unitsForDesired} units`} sub={`@ ${fmtCurrency(currentMonthlyNOI)} NOI/unit/mo`} accent={unitsForDesired <= 20 ? "green" : "amber"} />
+
+      <div style={{ marginTop: 12, fontSize: 11, color: "#5a7a9e" }}>
+        Occupied units: {occupiedUnits}/{units} | Rent gap: {fmtCurrency((mfMarketRent || 0) - (mfCurrentRent || 0))}/mo | Fill: {targetUnits - occupiedUnits} units
+      </div>
+    </div>
+  );
 }
 
 function SlowFlipAnalyzer({ data, update }) {
@@ -557,8 +1036,8 @@ function Analyzer({ data, update, assetType }) {
   );
 }
 
-function Scorecard({ data, update, assetType }) {
-  const criteria = assetType === "slowflip" ? SF_CRITERIA : assetType === "rv" ? RV_CRITERIA : MHP_CRITERIA;
+function Scorecard({ data, update, assetType, unitCount }) {
+  const criteria = assetType === "multifamily" ? ((unitCount || 4) >= 5 ? MF_COMMERCIAL_CRITERIA : MF_RESIDENTIAL_CRITERIA) : assetType === "slowflip" ? SF_CRITERIA : assetType === "rv" ? RV_CRITERIA : MHP_CRITERIA;
   const scores = data;
   const toggle = (id) => { const val = scores[id]; if (val === undefined) update({ ...scores, [id]: true }); else if (val === true) update({ ...scores, [id]: false }); else { const next = { ...scores }; delete next[id]; update(next); } };
   const total = criteria.length;
@@ -574,7 +1053,7 @@ function Scorecard({ data, update, assetType }) {
   }
   return (
     <div>
-      <SectionTitle>{assetType === "slowflip" ? "Slow Flip" : assetType === "rv" ? "RV Park" : "MHP"} Criteria ({total}-Point)</SectionTitle>
+      <SectionTitle>{assetType === "multifamily" ? ((unitCount || 4) >= 5 ? "MF Commercial" : "MF Residential") : assetType === "slowflip" ? "Slow Flip" : assetType === "rv" ? "RV Park" : "MHP"} Criteria ({total}-Point)</SectionTitle>
       <div style={{ fontSize: 11, color: "#5a7a9e", marginBottom: 16 }}>Click: unchecked → pass → fail. 1-5 are mandatory.</div>
       {criteria.map(c => {
         const val = scores[c.id];
@@ -671,11 +1150,11 @@ function ValueAdd({ data, update, assetType }) {
   );
 }
 
-function MarketCheck({ data, update, assetType }) {
+function MarketCheck({ data, update, assetType, unitCount }) {
   const { states: cs, zip, firecrawlKey, marketData } = data;
   const [scraping, setScraping] = useState(false);
   const [err, setErr] = useState("");
-  const checks = assetType === "slowflip" ? SF_MARKET_CHECKS : assetType === "rv" ? RV_MARKET_CHECKS : MHP_MARKET_CHECKS;
+  const checks = assetType === "multifamily" ? ((unitCount || 4) >= 5 ? MF_COMMERCIAL_MARKET_CHECKS : MF_RESIDENTIAL_MARKET_CHECKS) : assetType === "slowflip" ? SF_MARKET_CHECKS : assetType === "rv" ? RV_MARKET_CHECKS : MHP_MARKET_CHECKS;
   const toggle = (id) => { const v = cs[id]; let n; if (v === undefined) n = { ...cs, [id]: true }; else if (v === true) n = { ...cs, [id]: false }; else { n = { ...cs }; delete n[id]; } update({ ...data, states: n }); };
   const total = checks.reduce((s, c) => s + c.items.length, 0);
   const passed = Object.values(cs).filter(v => v === true).length;
@@ -704,7 +1183,7 @@ function MarketCheck({ data, update, assetType }) {
         </div>
         {marketData.topEmployers && <div style={{ marginTop: 8, fontSize: 11, color: "#6b7f99" }}>Employers: <span style={{ color: "#8a9bb5" }}>{marketData.topEmployers.join(", ")}</span></div>}
       </div>}
-      <SectionTitle>{assetType === "slowflip" ? "Slow Flip" : assetType === "rv" ? "RV" : "MHP"} Due Diligence</SectionTitle>
+      <SectionTitle>{assetType === "multifamily" ? ((unitCount || 4) >= 5 ? "MF Commercial" : "MF Residential") : assetType === "slowflip" ? "Slow Flip" : assetType === "rv" ? "RV" : "MHP"} Due Diligence</SectionTitle>
       {checks.map(section => (
         <div key={section.cat} style={{ marginBottom: 18 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: "#60a5fa", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.04em" }}>{section.cat}</div>
@@ -748,10 +1227,20 @@ export default function App() {
       next[activeDealIndex] = d; return next;
     });
   }, [activeDealIndex]);
+  const resetForUnitChange = useCallback(() => {
+    setDeals(prev => {
+      const next = [...prev];
+      const d = { ...next[activeDealIndex] };
+      d.scorecard = {};
+      d.marketCheck = { ...d.marketCheck, states: {} };
+      next[activeDealIndex] = d;
+      return next;
+    });
+  }, [activeDealIndex]);
   const addDeal = () => { setDeals(prev => [...prev, defaultDeal()]); setActiveDealIndex(deals.length); setActiveTab(0); };
   const deleteDeal = () => { if (deals.length <= 1) return; if (!confirm("Delete this deal?")) return; setDeals(prev => prev.filter((_, i) => i !== activeDealIndex)); setActiveDealIndex(prev => Math.max(0, prev - 1)); };
   const importDeals = () => { const input = document.createElement("input"); input.type = "file"; input.accept = ".json"; input.onchange = async (e) => { const file = e.target.files[0]; if (!file) return; try { const text = await file.text(); const imported = JSON.parse(text); if (!Array.isArray(imported)) throw new Error("Expected array"); setDeals(prev => [...prev, ...imported]); } catch (err) { alert("Invalid: " + err.message); } }; input.click(); };
-  const accent = assetType === "slowflip" ? "#16a34a" : assetType === "rv" ? "#8b5cf6" : "#3b82f6";
+  const accent = assetType === "multifamily" ? "#0891b2" : assetType === "slowflip" ? "#16a34a" : assetType === "rv" ? "#8b5cf6" : "#3b82f6";
   return (
     <div style={{ minHeight: "100vh", background: "#0c1220", color: "#e8edf5", fontFamily: "'Inter', -apple-system, sans-serif" }}>
       <div style={{ maxWidth: 640, margin: "0 auto", padding: "20px 16px 40px" }}>
@@ -763,7 +1252,7 @@ export default function App() {
         <div style={{ display: "flex", gap: 8, marginBottom: 12, alignItems: "center" }}>
           <select value={activeDealIndex} onChange={(e) => { setActiveDealIndex(Number(e.target.value)); setActiveTab(0); }}
             style={{ flex: 1, background: "#1a2235", border: "1px solid #2a3a52", borderRadius: 6, color: "#e8edf5", padding: "8px 10px", fontSize: 13, outline: "none", cursor: "pointer" }}>
-            {deals.map((d, i) => <option key={d.id} value={i}>{(d.assetType === "slowflip" ? "[SF] " : d.assetType === "rv" ? "[RV] " : "[MHP] ") + (d.name || `Untitled ${i + 1}`)}</option>)}
+            {deals.map((d, i) => <option key={d.id} value={i}>{(d.assetType === "multifamily" ? "[MF] " : d.assetType === "slowflip" ? "[SF] " : d.assetType === "rv" ? "[RV] " : "[MHP] ") + (d.name || `Untitled ${i + 1}`)}</option>)}
           </select>
           <button onClick={addDeal} style={{ background: "#1a6b4a", border: "none", borderRadius: 6, color: "#4ade80", padding: "8px 12px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>+ New</button>
           <button onClick={importDeals} style={{ background: "#1a2d5c", border: "none", borderRadius: 6, color: "#60a5fa", padding: "8px 10px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Import</button>
@@ -776,23 +1265,28 @@ export default function App() {
             <button onClick={() => updateDeal("assetType", "mhp")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "mhp" ? "#1a3a5c" : "#111827", color: assetType === "mhp" ? "#60a5fa" : "#4a5f7a" }}>MHP</button>
             <button onClick={() => updateDeal("assetType", "rv")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "rv" ? "#2d1a5c" : "#111827", color: assetType === "rv" ? "#a78bfa" : "#4a5f7a" }}>RV Park</button>
             <button onClick={() => updateDeal("assetType", "slowflip")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "slowflip" ? "#0d3326" : "#111827", color: assetType === "slowflip" ? "#4ade80" : "#4a5f7a" }}>Slow Flip</button>
+            <button onClick={() => updateDeal("assetType", "multifamily")} style={{ padding: "8px 14px", border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: assetType === "multifamily" ? "#0c3a42" : "#111827", color: assetType === "multifamily" ? "#22d3ee" : "#4a5f7a" }}>MF</button>
           </div>
         </div>
         <div style={{ display: "flex", gap: 2, background: "#111827", borderRadius: 10, padding: 3, marginBottom: 20 }}>
           {TABS.map((tab, i) => <button key={tab} onClick={() => setActiveTab(i)} style={{ flex: 1, padding: "9px 4px", borderRadius: 8, border: "none", cursor: "pointer", background: activeTab === i ? "#1e2d42" : "transparent", color: activeTab === i ? accent : "#5a7a9e", fontSize: 12, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.03em" }}>{tab}</button>)}
         </div>
         <div style={{ background: "#111d2e", borderRadius: 12, border: "1px solid #1e2d42", padding: "16px 18px" }}>
-          {activeTab === 0 && (assetType === "slowflip"
+          {activeTab === 0 && (assetType === "multifamily"
+            ? <MultifamilyAnalyzer data={deal.analyzer} update={(v) => updateDeal("analyzer", v)} onUnitThresholdCross={resetForUnitChange} />
+            : assetType === "slowflip"
             ? <SlowFlipAnalyzer data={deal.analyzer} update={(v) => updateDeal("analyzer", v)} />
             : <Analyzer data={deal.analyzer} update={(v) => updateDeal("analyzer", v)} assetType={assetType} />)}
-          {activeTab === 1 && <Scorecard data={deal.scorecard} update={(v) => updateDeal("scorecard", v)} assetType={assetType} />}
-          {activeTab === 2 && (assetType === "slowflip"
+          {activeTab === 1 && <Scorecard data={deal.scorecard} update={(v) => updateDeal("scorecard", v)} assetType={assetType} unitCount={deal.analyzer?.mfUnits || 4} />}
+          {activeTab === 2 && (assetType === "multifamily"
+            ? <MultifamilyValueAdd data={deal.valueAdd} update={(v) => updateDeal("valueAdd", v)} analyzerData={deal.analyzer} />
+            : assetType === "slowflip"
             ? <SlowFlipValueAdd data={deal.valueAdd} update={(v) => updateDeal("valueAdd", v)} analyzerData={deal.analyzer} />
             : <ValueAdd data={deal.valueAdd} update={(v) => updateDeal("valueAdd", v)} assetType={assetType} />)}
-          {activeTab === 3 && <MarketCheck data={deal.marketCheck} update={(v) => updateDeal("marketCheck", v)} assetType={assetType} />}
+          {activeTab === 3 && <MarketCheck data={deal.marketCheck} update={(v) => updateDeal("marketCheck", v)} assetType={assetType} unitCount={deal.analyzer?.mfUnits || 4} />}
         </div>
         <div style={{ textAlign: "center", marginTop: 20, fontSize: 10, color: "#2a3a52" }}>
-          Built with AI | {assetType === "slowflip" ? "Scott Jelinek slow flip framework" : assetType === "rv" ? "Dustin Kercher RV framework" : "Justin Donald MHP framework"}
+          Built with AI | {assetType === "multifamily" ? "Turner, Murray & Carson MF framework" : assetType === "slowflip" ? "Scott Jelinek slow flip framework" : assetType === "rv" ? "Dustin Kercher RV framework" : "Justin Donald MHP framework"}
         </div>
       </div>
     </div>
